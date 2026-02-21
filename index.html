@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSM</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      padding: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: #444;
+    }
+
+    /* 画面切り替え用のクラス */
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    /* ナビゲーション（戻るボタンなど） */
+    .nav-bar {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-back {
+      background: #ccc;
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-back:hover {
+      background: #bbb;
+    }
+
+    /* グリッドとタイル */
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .tile {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      width: 340px;
+      cursor: default;
+      transition: transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .tile:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .tile-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      width: 100%;
+      text-align: center;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+      padding-right: 30px;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .tile-title:hover {
+      color: #2196f3;
+    }
+
+    /* 削除ボタン */
+    .btn-delete-tile {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      color: #ccc;
+      padding: 0;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .btn-delete-tile:hover {
+      color: #f44336;
+    }
+
+    /* チャート周り */
+    .chart-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 10px auto;
+      pointer-events: none;
+      cursor: pointer;
+    }
+
+    .center-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #555;
+    }
+
+    /* 科目タイル内の簡易タスクリスト */
+    .sub-task-list {
+      width: 100%;
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+      cursor: default;
+    }
+
+    .sub-task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px dotted #eee;
+      font-size: 0.85rem;
+    }
+
+    .sub-task-name {
+      flex-grow: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 5px;
+    }
+
+    .sub-task-controls {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    /* リスト（タスク画面用） */
+    .list-container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px dashed #eee;
+    }
+
+    .task-name {
+      font-size: 1rem;
+      flex-grow: 1;
+      cursor: pointer;
+    }
+
+    .task-name:hover {
+      text-decoration: underline;
+      color: #2196f3;
+    }
+
+    .task-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .laps-badge {
+      background: #eee;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .laps-badge:hover {
+      background: #ddd;
+    }
+
+    button {
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.8;
+    }
+
+    .btn-progress {
+      background-color: #ffeb3b;
+      color: #555;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+    }
+
+    .btn-done {
+      background-color: #4caf50;
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+    }
+
+    .btn-undo {
+      background-color: #9e9e9e;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 4px 6px;
+    }
+
+    .btn-delete {
+      background-color: transparent;
+      color: #ccc;
+      padding: 4px;
+      margin-left: 5px;
+    }
+
+    .btn-delete:hover {
+      color: #f44336;
+    }
+
+    /* 入力フォーム */
+    .add-form {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .add-form input {
+      padding: 8px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      flex-grow: 1;
+      max-width: 300px;
+    }
+
+    .btn-add {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    /* 編集用入力 */
+    .edit-input {
+      padding: 4px;
+      font-size: 0.9rem;
+      border: 1px solid #2196f3;
+      border-radius: 4px;
+      color: #333;
+      width: 80%;
+    }
+
+    .edit-lap-input {
+      width: 40px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1 id="main-title">周回学習スケジューラー</h1>
+
+  <div id="view-tests" class="view active">
+    <h2>テスト・目標一覧</h2>
+    <div class="grid" id="tests-grid"></div>
+    <div class="add-form">
+      <input type="text" id="new-test-name" placeholder="新しいテスト名 (例: 期末テスト)">
+      <button class="btn-add" onclick="addTest()">追加</button>
+    </div>
+  </div>
+
+  <div id="view-subjects" class="view">
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goBackTo('tests')">◀ テスト一覧へ戻る</button>
+      <h2 id="current-test-title" style="margin: 0;"></h2>
+    </div>
+    <div class="grid" id="subjects-grid"></div>
+    <div class="add-form">
+      <input type="text" id="new-subject-name" placeholder="新しい科目名 (例: 物理)">
+      <button class="btn-add" onclick="addSubject()">追加</button>
+    </div>
+  </div>
+
+  <div id="view-tasks" class="view">
+    <div class="nav-bar">
+      <button class="btn-back" onclick="goBackTo('subjects')">◀ 科目一覧へ戻る</button>
+      <h2 id="current-subject-title" style="margin: 0;"></h2>
+    </div>
+    <div class="list-container" id="tasks-list"></div>
+    <div class="add-form">
+      <input type="text" id="new-task-name" placeholder="新しいタスク (例: 問題集 P10-20)">
+      <button class="btn-add" onclick="addTask()">追加</button>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. データ管理（保存機能） ---
+    // LocalStorageからデータを読み込む（なければ初期データ）
+    const STORAGE_KEY = 'studyAppLapsDataV2';
+    let appData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
+      {
+        id: "t1", name: "1学期 中間テスト",
+        subjects: [
+          {
+            id: "s1", name: "数学",
+            tasks: [
+              { id: "tk1", name: "FG", laps: 0, inProgress: false },
+            ]
+          }
+        ]
+      }
+    ];
+
+    // データを保存する関数
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    }
+
+    // --- 2. 状態管理 ---
+    let currentTestId = null;
+    let currentSubjectId = null;
+    let charts = {}; // チャートのインスタンス管理
+
+    // --- 3. 画面遷移と描画ロジック ---
+    function switchView(viewId) {
+      document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+      document.getElementById('view-' + viewId).classList.add('active');
+      window.scrollTo(0, 0);
+    }
+
+    function goBackTo(target) {
+      if (target === 'tests') {
+        currentTestId = null;
+        renderTests();
+        switchView('tests');
+      }
+      if (target === 'subjects') {
+        currentSubjectId = null;
+        renderSubjects();
+        switchView('subjects');
+      }
+    }
+
+    // ID生成用ユーティリティ
+    function generateId() {
+      return Math.random().toString(36).substring(2, 9);
+    }
+
+    // 【テスト画面】の描画
+    function renderTests() {
+      const grid = document.getElementById('tests-grid');
+      grid.innerHTML = '';
+      appData.forEach(test => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.innerHTML = `
+          <button class="btn-delete-tile" onclick="deleteTest(event, '${test.id}')" title="このテストを削除">🗑</button>
+          <div class="tile-title" onclick="openTest('${test.id}')">${test.name}</div>
+          <p onclick="openTest('${test.id}')" style="width:100%; text-align:center; cursor:pointer;">${test.subjects.length} 科目</p>
+        `;
+        grid.appendChild(tile);
+      });
+    }
+
+    window.openTest = function (testId) {
+      const test = appData.find(t => t.id === testId);
+      currentTestId = testId;
+      document.getElementById('current-test-title').innerText = test.name;
+      renderSubjects();
+      switchView('subjects');
+    };
+
+    // 【科目画面】の描画（円グラフ付き）
+    function renderSubjects() {
+      const grid = document.getElementById('subjects-grid');
+      grid.innerHTML = '';
+
+      const test = appData.find(t => t.id === currentTestId);
+      if (!test) return;
+
+      // 科目タイルの描画
+      test.subjects.forEach(subject => {
+        // x（最低周回数）を計算。タスクが0個の場合は0周目とする。
+        const x = subject.tasks.length > 0 ? Math.min(...subject.tasks.map(t => t.laps)) : 0;
+        const targetLap = x + 1;
+
+        let achievedCount = 0,
+          inProgressCount = 0,
+          unachievedCount = 0;
+        subject.tasks.forEach(task => {
+          if (task.laps >= targetLap) achievedCount++;
+          else if (task.inProgress) inProgressCount++;
+          else unachievedCount++;
+        });
+
+        // グラフが全て0（タスク無し）の場合は未達成1としてグレーで描画
+        if (subject.tasks.length === 0) unachievedCount = 1;
+
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+
+        // タスクリストの構築
+        let taskListHtml = '<div class="sub-task-list">';
+        if (subject.tasks.length === 0) {
+          taskListHtml += '<p style="color:#ccc; font-size:0.8rem; text-align:center;">タスクなし</p>';
+        } else {
+          subject.tasks.forEach(task => {
+            const statusStyle = task.inProgress ? 'color:#ff9800;' : '';
+            taskListHtml += `
+              <div class="sub-task-item">
+                <span class="sub-task-name" style="${statusStyle}">${task.name}</span>
+                <div class="sub-task-controls">
+                  <span style="font-weight:bold; margin-right:5px;">${task.laps}</span>
+                  <button class="btn-progress" style="padding: 4px 6px;" onclick="toggleProgress(event, '${task.id}', '${subject.id}')">${task.inProgress ? '中断' : '着手'}</button>
+                  <button class="btn-undo" onclick="removeLap(event, '${task.id}', '${subject.id}')" title="1周減らす">取消</button>
+                  <button class="btn-done" style="padding: 4px 6px;" onclick="addLap(event, '${task.id}', '${subject.id}')" title="1周増やす">完了</button>
+                </div>
+              </div>
+            `;
+          });
+        }
+        taskListHtml += '</div>';
+
+        tile.innerHTML = `
+          <button class="btn-delete-tile" onclick="deleteSubject(event, '${subject.id}')" title="この科目を削除">🗑</button>
+          <div class="tile-title" onclick="openSubject('${subject.id}')" title="詳細/編集を開く">${subject.name}</div>
+          <div class="chart-container" onclick="openSubject('${subject.id}')" title="詳細/編集を開く">
+            <canvas id="chart-${subject.id}"></canvas>
+            <div class="center-text">${x}周目</div>
+          </div>
+          ${taskListHtml}
+        `;
+        grid.appendChild(tile);
+
+        // Chart.jsの描画
+        const ctx = document.getElementById(`chart-${subject.id}`).getContext('2d');
+        if (charts[subject.id]) charts[subject.id].destroy();
+
+        // 色の設定 (0:オレンジ, 1:水色, 2:緑, 3以降:紫)
+        const themeColors = {
+          0: ['#ff9800', '#ffe0b2'],
+          1: ['#03a9f4', '#b3e5fc'],
+          2: ['#4caf50', '#c8e6c9']
+        };
+        const colors = themeColors[x % 3] || ['#9c27b0', '#e1bee7'];
+
+        charts[subject.id] = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['達成', 'やり途中', '未達成'],
+            datasets: [{
+              data: [achievedCount, inProgressCount, unachievedCount],
+              backgroundColor: [colors[0], colors[1], '#e0e0e0'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            cutout: '75%',
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                enabled: true
+              }
+            }
+          }
+        });
+      });
+    }
+
+    window.openSubject = function (subjectId) {
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === subjectId);
+      currentSubjectId = subjectId;
+      document.getElementById('current-subject-title').innerText = `${test.name} > ${subject.name}`;
+      renderTasks();
+      switchView('tasks');
+    };
+
+    // 【タスク画面】の描画
+    function renderTasks() {
+      const list = document.getElementById('tasks-list');
+      list.innerHTML = '';
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === currentSubjectId);
+
+      if (subject.tasks.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:#999;">タスクがありません。下から追加してください。</p>';
+        return;
+      }
+
+      subject.tasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'task-item';
+        const statusText = task.inProgress ? '<span style="color:#ff9800; font-size:0.8rem; margin-left:10px;">(進行中)</span>' : '';
+
+        item.innerHTML = `
+          <div class="task-name" id="name-${task.id}" onclick="editTaskName('${task.id}')">${task.name} ${statusText}</div>
+          <div class="task-controls">
+            <span class="laps-badge" id="laps-${task.id}" onclick="editTaskLaps('${task.id}')">${task.laps}周</span>
+            <button class="btn-progress" onclick="toggleProgress(event, '${task.id}', '${subject.id}')">${task.inProgress ? '中断' : '着手'}</button>
+            <button class="btn-done" onclick="addLap(event, '${task.id}', '${subject.id}')">完了 (+1周)</button>
+            <button class="btn-delete" onclick="deleteTask('${task.id}')">🗑</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // --- 4. 編集・削除ロジック ---
+    window.editTaskName = function (taskId) {
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === currentSubjectId);
+      const task = subject.tasks.find(t => t.id === taskId);
+      const el = document.getElementById(`name-${taskId}`);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'edit-input';
+      input.value = task.name;
+      input.onblur = () => {
+        if (input.value.trim()) {
+          task.name = input.value.trim();
+          saveData();
+        }
+        renderTasks();
+      };
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') input.blur();
+      };
+
+      el.innerHTML = '';
+      el.appendChild(input);
+      input.focus();
+    };
+
+    window.editTaskLaps = function (taskId) {
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === currentSubjectId);
+      const task = subject.tasks.find(t => t.id === taskId);
+      const el = document.getElementById(`laps-${taskId}`);
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.className = 'edit-input edit-lap-input';
+      input.value = task.laps;
+      input.onblur = () => {
+        const val = parseInt(input.value);
+        if (!isNaN(val)) {
+          task.laps = val;
+          saveData();
+        }
+        renderTasks();
+      };
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') input.blur();
+      };
+
+      el.innerHTML = '';
+      el.appendChild(input);
+      input.focus();
+    };
+
+    window.deleteTask = function (taskId) {
+      if (!confirm('このタスクを削除しますか？')) return;
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === currentSubjectId);
+      subject.tasks = subject.tasks.filter(t => t.id !== taskId);
+      saveData();
+      renderTasks();
+    };
+
+    window.deleteSubject = function (event, subjectId) {
+      event.stopPropagation();
+      if (!confirm('この科目を削除しますか？')) return;
+      const test = appData.find(t => t.id === currentTestId);
+      test.subjects = test.subjects.filter(s => s.id !== subjectId);
+      saveData();
+      renderSubjects();
+    };
+
+    window.deleteTest = function (event, testId) {
+      event.stopPropagation();
+      if (!confirm('このテストを削除しますか？')) return;
+      appData = appData.filter(t => t.id !== testId);
+      saveData();
+      renderTests();
+    };
+
+    // --- 5. データ追加ロジック ---
+    window.addTest = function () {
+      const input = document.getElementById('new-test-name');
+      if (!input.value.trim()) return;
+      appData.push({
+        id: generateId(),
+        name: input.value.trim(),
+        subjects: []
+      });
+      input.value = '';
+      saveData();
+      renderTests();
+    };
+
+    window.addSubject = function () {
+      const input = document.getElementById('new-subject-name');
+      if (!input.value.trim()) return;
+      const test = appData.find(t => t.id === currentTestId);
+      test.subjects.push({
+        id: generateId(),
+        name: input.value.trim(),
+        tasks: []
+      });
+      input.value = '';
+      saveData();
+      renderSubjects();
+    };
+
+    window.addTask = function () {
+      const input = document.getElementById('new-task-name');
+      if (!input.value.trim()) return;
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === currentSubjectId);
+      subject.tasks.push({
+        id: generateId(),
+        name: input.value.trim(),
+        laps: 0,
+        inProgress: false
+      });
+      input.value = '';
+      saveData();
+      renderTasks();
+    };
+
+    // 汎用化したボタンアクション
+    window.toggleProgress = function (event, taskId, subjectId) {
+      if (event) event.stopPropagation();
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === (subjectId || currentSubjectId));
+      const task = subject.tasks.find(t => t.id === taskId);
+      task.inProgress = !task.inProgress;
+      saveData();
+      if (document.getElementById('view-subjects').classList.contains('active')) renderSubjects();
+      else renderTasks();
+    };
+
+    window.addLap = function (event, taskId, subjectId) {
+      if (event) event.stopPropagation();
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === (subjectId || currentSubjectId));
+      const task = subject.tasks.find(t => t.id === taskId);
+      task.laps += 1;
+      task.inProgress = false;
+      saveData();
+      if (document.getElementById('view-subjects').classList.contains('active')) renderSubjects();
+      else renderTasks();
+    };
+
+    window.removeLap = function (event, taskId, subjectId) {
+      if (event) event.stopPropagation();
+      const test = appData.find(t => t.id === currentTestId);
+      const subject = test.subjects.find(s => s.id === (subjectId || currentSubjectId));
+      const task = subject.tasks.find(t => t.id === taskId);
+      if (task.laps > 0) {
+        task.laps -= 1;
+        saveData();
+        if (document.getElementById('view-subjects').classList.contains('active')) renderSubjects();
+        else renderTasks();
+      }
+    };
+
+    // 初期描画
+    renderTests();
+  </script>
+</body>
+
+</html>
