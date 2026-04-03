@@ -89,6 +89,8 @@
       gap: 18px;
       justify-content: center;
       margin-bottom: 28px;
+      /* 描画中のスクロール位置ズレを防止 */
+      min-height: 400px;
     }
 
     .tile {
@@ -216,6 +218,8 @@
       border-radius: 0;
       border: 1px solid #e8e4df;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      /* 描画中のスクロール位置ズレを防止 */
+      min-height: 400px;
     }
 
     .task-item {
@@ -430,7 +434,6 @@
 
   <script>
     // --- 1. データ管理（保存機能） ---
-    // LocalStorageからデータを読み込む（なければ初期データ）
     const STORAGE_KEY = 'studyAppLapsDataV2';
     let appData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
       {
@@ -446,7 +449,6 @@
       }
     ];
 
-    // データを保存する関数
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
     }
@@ -454,7 +456,7 @@
     // --- 2. 状態管理 ---
     let currentTestId = null;
     let currentSubjectId = null;
-    let charts = {}; // チャートのインスタンス管理
+    let charts = {}; 
 
     // --- 3. 画面遷移と描画ロジック ---
     function switchView(viewId) {
@@ -476,7 +478,6 @@
       }
     }
 
-    // ID生成用ユーティリティ
     function generateId() {
       return Math.random().toString(36).substring(2, 9);
     }
@@ -505,17 +506,18 @@
       switchView('subjects');
     };
 
-    // 【科目画面】の描画（円グラフ付き）
+    // 【科目画面】の描画
     function renderSubjects() {
+      // スクロール位置を保存
+      const scrollPos = window.scrollY;
+
       const grid = document.getElementById('subjects-grid');
       grid.innerHTML = '';
 
       const test = appData.find(t => t.id === currentTestId);
       if (!test) return;
 
-      // 科目タイルの描画
       test.subjects.forEach(subject => {
-        // x（最低周回数）を計算。タスクが0個の場合は0周目とする。
         const x = subject.tasks.length > 0 ? Math.min(...subject.tasks.map(t => t.laps)) : 0;
         const targetLap = x + 1;
 
@@ -528,13 +530,11 @@
           else unachievedCount++;
         });
 
-        // グラフが全て0（タスク無し）の場合は未達成1としてグレーで描画
         if (subject.tasks.length === 0) unachievedCount = 1;
 
         const tile = document.createElement('div');
         tile.className = 'tile';
 
-        // タスクリストの構築
         let taskListHtml = '<div class="sub-task-list">';
         if (subject.tasks.length === 0) {
           taskListHtml += '<p style="color:#b5b0a8; font-size:0.8rem; text-align:center;">タスクなし</p>';
@@ -567,11 +567,9 @@
         `;
         grid.appendChild(tile);
 
-        // Chart.jsの描画
         const ctx = document.getElementById(`chart-${subject.id}`).getContext('2d');
         if (charts[subject.id]) charts[subject.id].destroy();
 
-        // 色の設定（新パレット）
         const themeColors = {
           0: ['#ef8354', '#f5cdb6'],
           1: ['#4f5d75', '#b8c0cc'],
@@ -592,16 +590,15 @@
           options: {
             cutout: '75%',
             plugins: {
-              legend: {
-                display: false
-              },
-              tooltip: {
-                enabled: true
-              }
+              legend: { display: false },
+              tooltip: { enabled: true }
             }
           }
         });
       });
+
+      // 描画後にスクロール位置を復元
+      window.scrollTo(0, scrollPos);
     }
 
     window.openSubject = function (subjectId) {
@@ -615,6 +612,9 @@
 
     // 【タスク画面】の描画
     function renderTasks() {
+      // スクロール位置を保存
+      const scrollPos = window.scrollY;
+
       const list = document.getElementById('tasks-list');
       list.innerHTML = '';
       const test = appData.find(t => t.id === currentTestId);
@@ -641,6 +641,9 @@
         `;
         list.appendChild(item);
       });
+
+      // 描画後にスクロール位置を復元
+      window.scrollTo(0, scrollPos);
     }
 
     // --- 4. 編集・削除ロジック ---
@@ -767,7 +770,6 @@
       renderTasks();
     };
 
-    // 汎用化したボタンアクション
     window.toggleProgress = function (event, taskId, subjectId) {
       if (event) event.stopPropagation();
       const test = appData.find(t => t.id === currentTestId);
@@ -804,7 +806,6 @@
       }
     };
 
-    // 初期描画
     renderTests();
   </script>
 </body>
